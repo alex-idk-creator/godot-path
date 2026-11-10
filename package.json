@@ -1,0 +1,14 @@
+{
+  "name": "godot-path",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "site:ensure": "node scripts/serve.mjs ensure",
+    "dev": "node scripts/serve.mjs dev"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
