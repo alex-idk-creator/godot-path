@@ -26,6 +26,7 @@ const allowed = new Set([
   "index.html",
   "app.js",
   "content.js",
+  "model.js",
   "styles.css",
   "mark.svg",
 ]);
@@ -54,7 +55,13 @@ if (mode === "ensure") {
       await new Promise((r) => setTimeout(r, 200));
   }
   if (!(await ready())) throw new Error("Godot Path local server unavailable");
-  for (const f of ["app.js", "content.js", "styles.css", "mark.svg"]) {
+  for (const f of [
+    "app.js",
+    "content.js",
+    "model.js",
+    "styles.css",
+    "mark.svg",
+  ]) {
     const r = await fetch(url + f);
     if (!r.ok) throw new Error(`Missing ${f}`);
   }

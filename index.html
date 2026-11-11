@@ -10,14 +10,22 @@
     />
     <title>Godot Path — от идеи до игры</title>
     <link rel="icon" href="./mark.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css" />
+    <script>
+      try {
+        const p = JSON.parse(localStorage.getItem("godot-path-v1") || "null");
+        if (p?.theme === "dark")
+          document.documentElement.dataset.theme = "dark";
+      } catch {}
+    </script>
+    <link rel="stylesheet" href="./styles.css?v=20261111-ux" />
   </head>
   <body>
     <a class="skip" href="#main">К содержимому</a>
     <div id="app"></div>
+    <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
     <noscript
       >Для уроков и сохранения прогресса включи JavaScript в браузере.</noscript
     >
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=20261111-ux"></script>
   </body>
 </html>

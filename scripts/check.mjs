@@ -26,7 +26,7 @@ for (const g of guides) {
     for (const f of ["title", "action", "expected", "help"])
       assert.ok(s[f]?.length > (f === "title" ? 3 : 10), `${g.id} ${f}`);
 }
-for (const file of ["app.js", "content.js", "scripts/serve.mjs"])
+for (const file of ["app.js", "content.js", "model.js", "scripts/serve.mjs"])
   execFileSync(process.execPath, ["--check", path.join(root, file)]);
 const html = readFileSync(path.join(root, "index.html"), "utf8");
 assert.match(html, /lang="ru"/);
@@ -35,3 +35,5 @@ assert.ok(!html.includes("http://"));
 console.log(
   "PASS: 50 unique lessons, 10 complete guides, 10 chapters, content and JavaScript checks.",
 );
+
+await import("./model-check.mjs");
