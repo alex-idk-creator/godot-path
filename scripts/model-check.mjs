@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { allItems, guides } from "../content.js";
+import { allItems, guides, modules } from "../content.js";
 import {
   fresh,
   sanitize,
   resumeItem,
   discover,
+  discoveryExcerpt,
   confirmGuideStep,
   finishItem,
 } from "../model.js";
@@ -17,7 +18,7 @@ const old = sanitize({
 });
 assert.deepEqual(old.completed, [1]);
 assert.deepEqual(old.saved, [29]);
-assert.equal(old.chapter, 9);
+assert.equal(old.chapter, modules.length - 1);
 assert.equal(old.lessonProgress[2].practiced, true);
 assert.deepEqual(old.guideDone[108], [0, 1, 2]);
 assert.equal(resumeItem(old).id, 2);
@@ -74,4 +75,40 @@ assert.ok(
   discover(allItems, { query: "оркестратор" }, sanitize(fresh())).some(
     (i) => i.id === 11,
   ),
+);
+
+assert.ok(
+  discover(allItems, { query: "Gatekeeper" }, sanitize(fresh())).some(
+    (i) => i.id === 110,
+  ),
+);
+assert.equal(
+  sanitize({ pathLayout: "list", lessonReturn: { lessonId: 29, guideId: 105 } })
+    .lessonReturn.lessonId,
+  29,
+);
+assert.equal(
+  sanitize({ lessonReturn: { lessonId: 999, guideId: 105 } }).lessonReturn,
+  null,
+);
+
+const formerGraduate = sanitize({
+  completed: [
+    ...Array.from({ length: 50 }, (_, i) => i + 1),
+    ...Array.from({ length: 10 }, (_, i) => i + 101),
+  ],
+});
+assert.equal(resumeItem(formerGraduate).id, 51);
+assert.equal(formerGraduate.completed.length, 60);
+assert.equal(
+  sanitize({ chapter: 11, discovery: { catalog: { module: "11" } } }).discovery
+    .catalog.module,
+  "11",
+);
+
+assert.ok(
+  discoveryExcerpt(
+    guides.find((g) => g.id === 110),
+    "Gatekeeper",
+  ).text.includes("Gatekeeper"),
 );

@@ -1,5 +1,10 @@
 // Browser-independent progress and discovery rules. Keep v1 progress compatible.
-import { allItems, lessons, guides, modules } from "./content.js";
+import {
+  allItems,
+  lessons,
+  guides,
+  modules,
+} from "./content.js?v=20261114-course";
 const validIds = new Set(allItems.map((i) => i.id));
 export const fresh = () => ({
   completed: [],
@@ -10,7 +15,9 @@ export const fresh = () => ({
   last: 1,
   chapter: 0,
   theme: "light",
+  pathLayout: "map",
   returnContext: null,
+  lessonReturn: null,
   discovery: {
     catalog: { query: "", filter: "all", module: "all", type: "all" },
     guides: { query: "", filter: "all", module: "all", type: "all" },
@@ -29,8 +36,9 @@ export function sanitize(raw) {
   state.saved = ids(state.saved);
   state.last = validIds.has(state.last) ? state.last : 1;
   state.chapter = Number.isInteger(state.chapter)
-    ? Math.max(0, Math.min(9, state.chapter))
+    ? Math.max(0, Math.min(modules.length - 1, state.chapter))
     : 0;
+  state.pathLayout = state.pathLayout === "list" ? "list" : "map";
   state.theme = state.theme === "dark" ? "dark" : "light";
   const discovery = fresh().discovery;
   for (const view of ["catalog", "guides"]) {
@@ -44,13 +52,20 @@ export function sanitize(raw) {
         p.module === "all" ||
         (Number.isInteger(Number(p.module)) &&
           Number(p.module) >= 0 &&
-          Number(p.module) < 10)
+          Number(p.module) < modules.length)
           ? String(p.module)
           : "all",
       type: ["all", "lesson", "guide"].includes(p.type) ? p.type : "all",
     };
   }
   state.discovery = discovery;
+  const lr = state.lessonReturn;
+  state.lessonReturn =
+    lr &&
+    lessons.some((l) => l.id === lr.lessonId) &&
+    guides.some((g) => g.id === lr.guideId)
+      ? { lessonId: lr.lessonId, guideId: lr.guideId }
+      : null;
   const r = state.returnContext;
   state.returnContext =
     r && ["path", "catalog", "guides"].includes(r.view)
@@ -58,7 +73,7 @@ export function sanitize(raw) {
           view: r.view,
           y: Number.isFinite(r.y) ? Math.max(0, r.y) : 0,
           chapter: Number.isInteger(r.chapter)
-            ? Math.max(0, Math.min(9, r.chapter))
+            ? Math.max(0, Math.min(modules.length - 1, r.chapter))
             : 0,
           selector:
             typeof r.selector === "string" &&
@@ -165,8 +180,16 @@ export function discover(
         item.title,
         modules[item.module].title,
         item.kind === "guide"
-          ? item.requires
-          : item.idea + " " + item.detail + " " + item.practice,
+          ? [
+              item.requires,
+              ...item.steps.flatMap((s) => [
+                s.title,
+                s.action,
+                s.expected,
+                s.help,
+              ]),
+            ].join(" ")
+          : [item.idea, item.detail, item.practice, item.expected].join(" "),
       ].join(" "),
     );
     return tokens.every((t) => hay.includes(t));
@@ -185,4 +208,45 @@ export function confirmGuideStep(state, item, step) {
 }
 export function finishItem(state, id) {
   if (!state.completed.includes(id)) state.completed.push(id);
+}
+
+// A result should explain why it matched, even when the title contains none of the query.
+export function discoveryExcerpt(item, query) {
+  const tokens = normalize(query).split(" ").filter(Boolean);
+  const candidates =
+    item.kind === "guide"
+      ? [
+          { text: item.requires, label: "Перед началом" },
+          ...item.steps.map((s, i) => ({
+            text: `${s.title}. ${s.action} ${s.expected} ${s.help}`,
+            label: `Шаг ${i + 1}`,
+          })),
+        ]
+      : [
+          { text: item.idea, label: "Главная идея" },
+          { text: item.detail, label: "Объяснение" },
+          { text: item.practice, label: "Практика" },
+          { text: item.expected, label: "Результат задания" },
+        ];
+  const match = tokens.length
+    ? candidates
+        .map((c) => ({
+          ...c,
+          score: tokens.filter((t) => normalize(c.text).includes(t)).length,
+        }))
+        .sort((a, b) => b.score - a.score)[0]
+    : candidates[0];
+  if (tokens.length && match.score) {
+    const sentences = match.text
+      .split(/(?<=[.!?])\s+(?=[А-ЯЁA-Z])/)
+      .filter(Boolean);
+    const sentence = sentences
+      .map((text) => ({
+        text,
+        score: tokens.filter((t) => normalize(text).includes(t)).length,
+      }))
+      .sort((a, b) => b.score - a.score)[0];
+    return { ...match, text: sentence.text };
+  }
+  return match;
 }

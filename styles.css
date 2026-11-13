@@ -2551,7 +2551,7 @@ code {
   line-height: 1.85;
 }
 .action-list > li:before {
-  content: counter(action);
+  content: counter(action) / "";
   position: absolute;
   top: 3px;
   left: 0;
@@ -3705,4 +3705,206 @@ code {
 }
 .card-open .text-button {
   white-space: nowrap;
+}
+
+/* Contextual help stays secondary to the practice itself. */
+.practice-guide {
+  margin: 20px 0 28px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: var(--surface);
+}
+.practice-guide > div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.practice-guide > div > .icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.practice-guide b {
+  display: block;
+  font-size: 14px;
+}
+.practice-guide small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.practice-guide button {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+.reader-context > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.reader-context > strong {
+  flex-shrink: 0;
+}
+.match-label {
+  display: block;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-bottom: 3px;
+}
+@media (max-width: 680px) {
+  .practice-guide {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 16px;
+  }
+  .practice-guide button {
+    align-self: flex-start;
+    margin-left: 38px;
+  }
+  .reader-context {
+    min-width: 0;
+  }
+  .reader-context > span {
+    max-width: 100%;
+  }
+}
+.path-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 24px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.layout-switch {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px;
+  background: var(--surface);
+}
+.layout-switch button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 5px;
+  padding: 8px 10px;
+  font: inherit;
+  font-weight: 600;
+  min-height: 38px;
+}
+.layout-switch button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.lesson-path.is-list {
+  height: auto;
+  min-height: 0;
+  padding: 18px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lesson-path.is-list .path-line {
+  display: none;
+}
+.lesson-path.is-list .path-stop {
+  position: static;
+  transform: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 10px;
+  text-align: left;
+}
+.lesson-path.is-list .path-stop:hover {
+  border-color: var(--accent);
+}
+.lesson-path.is-list .lesson-orb {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  margin: 0;
+  box-shadow: none;
+  border-radius: 12px;
+}
+.lesson-path.is-list .lesson-orb .icon {
+  width: 21px;
+  height: 21px;
+}
+.lesson-path.is-list .stop-label {
+  max-width: none;
+  text-align: left;
+  margin: 0;
+}
+.lesson-path.is-list .stop-label small {
+  margin: 0 0 5px;
+}
+.lesson-path.is-list .stop-label strong {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.lesson-path.is-list .path-current-label {
+  margin-top: 5px;
+}
+@media (max-width: 680px) {
+  .path-toolbar {
+    padding: 16px 16px 0;
+  }
+  .layout-switch button {
+    min-height: 44px;
+  }
+  .lesson-path.is-list {
+    padding: 16px;
+  }
+  .lesson-path.is-list .path-stop {
+    padding: 12px;
+    gap: 12px;
+  }
+  .lesson-path.is-list .stop-label {
+    width: auto;
+  }
+  .reader-item-title {
+    display: none;
+  }
+}
+.lesson-path.is-list {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+}
+.lesson-path.is-list .stop-label {
+  align-items: flex-start;
+  background: transparent;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+}
+.practice-box .practice-outcome {
+  margin: 24px 0 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: 20px 0 0;
+  background: transparent;
+}
+.practice-outcome p {
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 0;
 }

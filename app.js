@@ -1,13 +1,19 @@
-import { modules, lessons, guides, allItems } from "./content.js";
+import {
+  modules,
+  lessons,
+  guides,
+  allItems,
+} from "./content.js?v=20261114-course";
 import {
   fresh,
   sanitize,
   nextLesson as findNext,
   resumeItem as findResume,
   discover,
+  discoveryExcerpt,
   confirmGuideStep,
   finishItem,
-} from "./model.js";
+} from "./model.js?v=20261114-course";
 const app = document.querySelector("#app"),
   KEY = "godot-path-v1";
 let state,
@@ -34,7 +40,12 @@ const nextLesson = () => findNext(state),
 const hasStarted = () =>
   Object.keys(state.positions).length > 0 || state.completed.length > 0;
 const count = () => lessons.filter((l) => done(l.id)).length;
-const xp = () => state.completed.reduce((n, id) => n + (id > 100 ? 30 : 20), 0);
+const percent = () => Math.round((count() / lessons.length) * 100);
+const xp = () =>
+  state.completed.reduce(
+    (n, id) => n + (guides.some((g) => g.id === id) ? 30 : 20),
+    0,
+  );
 const esc = (s) =>
   String(s).replace(
     /[&<>"']/g,
@@ -110,6 +121,16 @@ const terms = [
   "Игровая петля|Крайние случаи|Повтор",
   "Export Templates|macOS|Сборка",
   "Исходники|GitHub|Резервная копия",
+  "FileSystem|Зависимости|Перемещение",
+  "Material|Make Unique|Ресурс",
+  "value|exported|Экземпляр",
+  "get_node_or_null|is_instance_valid|Путь",
+  "game_manager|call|Аргументы",
+  "checkpoint_position|Vector3|global_position",
+  "respawn|velocity|Граница падения",
+  "Area3D|Marker3D|set_checkpoint",
+  "ConfigFile|user://|save",
+  "load|get_value|Проверка типа",
 ];
 const technical =
   /\b(?:[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+|[A-Za-z][A-Za-z0-9_]*\.(?:torch|tscn|godot|blend|dylib|glb)|[A-Z][A-Za-z0-9]*(?:3D|2D)|Vector3|PackedScene|AnimationPlayer|CanvasLayer|Control|Label|Button|Timer|EventGraph|Input|Main|Player|Ground|Item|Visual|Branch|Compatibility|Inspector|FileSystem|true|false|int|float|bool)\b/g;
@@ -139,11 +160,13 @@ function labelFor(id) {
       : "Открыть";
 }
 const returnLabel = () =>
-  returnContext?.view === "catalog"
-    ? "К каталогу"
-    : returnContext?.view === "guides"
-      ? "К гайдам"
-      : "К пути обучения";
+  active?.id === state.lessonReturn?.guideId
+    ? `К уроку ${state.lessonReturn.lessonId}`
+    : returnContext?.view === "catalog"
+      ? "К каталогу"
+      : returnContext?.view === "guides"
+        ? "К гайдам"
+        : "К пути обучения";
 const icons = {
   compass:
     '<circle cx="12" cy="12" r="9"/><path d="m16 8-2.5 5.5L8 16l2.5-5.5Z"/>',
@@ -197,22 +220,35 @@ function header() {
     )}</nav><div class="header-tools"><span class="xp" title="Очки за пройденные уроки и гайды" aria-label="${xp()} очков опыта">${icon("spark")}<b>${xp()}</b> XP</span>${themeButton()}</div></header>`;
 }
 function progressCard() {
-  return `<aside class="progress-card"><div class="card-heading"><span>Твой прогресс</span>${icon("flag")}</div><div class="progress-number">${count()}<span> / 50 уроков</span></div><div class="meter" role="progressbar" aria-label="Пройдено уроков" aria-valuemin="0" aria-valuemax="50" aria-valuenow="${count()}"><i style="width:${count() * 2}%"></i></div><p>${count() === 0 ? "Начни с первой сцены — дальше шаг за шагом." : count() === 50 ? "Все уроки пройдены. Нужная механика всегда есть в каталоге." : "Твои уроки и отмеченные шаги сохраняются автоматически."}</p><span class="small-meta">${guides.filter((g) => done(g.id)).length} из 10 гайдов пройдено</span></aside>`;
+  return `<aside class="progress-card"><div class="card-heading"><span>Твой прогресс</span>${icon("flag")}</div><div class="progress-number">${count()}<span> / ${lessons.length} уроков</span></div><div class="meter" role="progressbar" aria-label="Пройдено уроков" aria-valuemin="0" aria-valuemax="${lessons.length}" aria-valuenow="${count()}"><i style="width:${percent()}%"></i></div><p>${count() === 0 ? "Начни с первой сцены — дальше шаг за шагом." : count() === lessons.length ? "Все уроки пройдены. Нужная механика всегда есть в каталоге." : "Твои уроки и отмеченные шаги сохраняются автоматически."}</p><span class="small-meta">${guides.filter((g) => done(g.id)).length} из ${guides.length} гайдов пройдено</span></aside>`;
 }
 function pathView() {
   const mod = modules[chapter],
     group = lessons.filter((l) => l.module === chapter),
-    recommend = guides.find((g) => g.module === chapter) || guides[chapter],
+    recommend =
+      guides.find((g) => g.module === chapter) ||
+      guides.find((g) => g.id === group[0].guideId),
     resume = resumeItem();
   const started = hasStarted();
-  return `<section class="hero ${started ? "is-returning" : ""}"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> GODOT + ORCHESTRATOR</div><h1>${started && !resume ? "Ты прошёл<br><em>весь путь.</em>" : started ? "Следующий шаг<br>к <em>своей игре.</em>" : "От первой сцены<br>до <em>своей игры.</em>"}</h1><p>${started && !resume ? 'Все 50 уроков и 10 гайдов пройдены.<br class="desktop-br"> Возвращайся к нужной теме в любой момент.' : started ? 'Твой маршрут сохранён. Продолжай с того места,<br class="desktop-br"> где остановился.' : 'Создавай 3D-игры, соединяя блоки логики.<br class="desktop-br"> Один понятный шаг за раз — в твоём темпе.'}</p>${started && resume ? `<div class="resume-context"><span>${resume.kind === "guide" ? "ПОШАГОВЫЙ ГАЙД" : `УРОК ${String(resume.id).padStart(2, "0")}`} · ${stageName(resume, state.positions[resume.id] || 0)}</span><strong>${resume.title}</strong></div>` : ""}<div class="hero-actions">${resume ? `<button class="button primary" data-open="${resume.id}">${started ? "Продолжить обучение" : "Начать путь"} ${icon("arrow")}</button>` : `<a class="button primary" href="#catalog">Весь курс пройден · открыть каталог ${icon("check")}</a>`}<a class="button ghost" href="${started ? "#path" : "#guides"}" ${started ? 'data-action="show-path"' : ""}>${started ? "К дорожке уроков" : "Открыть гайды"} ${icon(started ? "compass" : "book")}</a></div>${started ? `<div class="inline-progress"><span><b>${count()}</b> из 50 уроков</span><div class="meter" role="progressbar" aria-label="Пройдено уроков" aria-valuemin="0" aria-valuemax="50" aria-valuenow="${count()}"><i style="width:${count() * 2}%"></i></div><span>${Math.round(count() * 2)}%</span></div>` : `<div class="hero-facts"><span><b>50</b> уроков</span><span><b>10</b> пошаговых гайдов</span><span><b>0 ₽</b> за весь курс</span></div>`}</div>${illustration()}</section><section class="learning-section" id="learning"><div class="section-title"><div><div class="eyebrow">ТВОЙ МАРШРУТ</div><h2>От идеи до первой игры</h2></div><span class="version-label">Godot 4.7 · Orchestrator 2.5</span></div><div class="learning-layout"><aside class="chapters"><span class="rail-title">10 ГЛАВ ПУТИ</span><label class="mobile-chapter-select">Выбрать главу<select id="chapter-select">${modules.map((m) => `<option value="${m.id}" ${m.id === chapter ? "selected" : ""}>${m.number}. ${m.title}</option>`).join("")}</select></label><nav aria-label="Главы курса">${modules.map((m) => `<button class="chapter ${m.id === chapter ? "active" : ""}" data-chapter="${m.id}" ${m.id === chapter ? 'aria-current="step"' : ""}><span class="chapter-number">${lessons.filter((l) => l.module === m.id && done(l.id)).length === 5 ? icon("check") : m.number}</span><span>${m.title}<small>${lessons.filter((l) => l.module === m.id && done(l.id)).length} из 5 пройдено</small></span></button>`).join("")}</nav></aside><div class="path-panel"><div class="chapter-banner"><div><small>ГЛАВА ${mod.number} · 5 УРОКОВ</small><h3>${mod.title}</h3><p>${mod.description}</p></div><span class="banner-icon">${icon(mod.icon)}</span></div><div class="lesson-path"><svg class="path-line" viewBox="0 0 450 650" preserveAspectRatio="none" aria-hidden="true"><path d="M225 45C225 110 330 110 330 170S225 230 225 295 120 355 120 420 225 480 225 545"/></svg>${group.map((l, i) => `<button class="path-stop stop-${i}" data-open="${l.id}" aria-label="Урок ${l.id}: ${esc(l.title)}${done(l.id) ? ", пройден" : l.id === nextLesson()?.id ? ", следующий урок" : ""}"><span class="lesson-orb ${done(l.id) ? "done" : l.id === nextLesson()?.id ? "current" : ""}">${done(l.id) ? icon("check") : icon(i === 0 ? mod.icon : i === 4 ? "flag" : "book")}</span><span class="stop-label"><small>УРОК ${String(l.id).padStart(2, "0")} · ${l.minutes} МИН</small><strong>${l.title}</strong>${l.id === nextLesson()?.id ? `<span class="path-current-label">${hasStarted() ? "Следующий урок" : "Начни здесь"}</span>` : ""}</span></button>`).join("")}</div><div class="chapter-pager"><button class="button ghost" data-action="prev-chapter" ${chapter === 0 ? "disabled" : ""} aria-label="Предыдущая глава">← Назад</button><span>Глава ${chapter + 1} из 10</span><button class="button ghost" data-action="next-chapter" ${chapter === 9 ? "disabled" : ""} aria-label="Следующая глава">Дальше →</button></div></div><aside class="path-aside">${progressCard()}<article class="guide-promo"><span class="pill">ПОШАГОВЫЙ ГАЙД</span>${icon(mod.icon, "promo-icon")}<h3>${recommend.title}</h3><p>Конкретные действия, ожидаемый результат и помощь на каждом шаге.</p><button class="text-button" data-open="${recommend.id}">${labelFor(recommend.id)} гайд ${icon("arrow")}</button></article></aside></div></section>`;
+  return `<section class="hero ${started ? "is-returning" : ""}"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> GODOT + ORCHESTRATOR</div><h1>${started && !resume ? "Ты прошёл<br><em>весь путь.</em>" : started ? "Следующий шаг<br>к <em>своей игре.</em>" : "От первой сцены<br>до <em>своей игры.</em>"}</h1><p>${started && !resume ? `Все ${lessons.length} уроков и ${guides.length} гайдов пройдены.<br class="desktop-br"> Возвращайся к нужной теме в любой момент.` : started ? 'Твой маршрут сохранён. Продолжай с того места,<br class="desktop-br"> где остановился.' : 'Создавай 3D-игры, соединяя блоки логики.<br class="desktop-br"> Один понятный шаг за раз — в твоём темпе.'}</p>${started && resume ? `<div class="resume-context"><span>${resume.kind === "guide" ? "ПОШАГОВЫЙ ГАЙД" : `УРОК ${String(resume.id).padStart(2, "0")}`} · ${stageName(resume, state.positions[resume.id] || 0)}</span><strong>${resume.title}</strong></div>` : ""}<div class="hero-actions">${resume ? `<button class="button primary" data-open="${resume.id}">${started ? "Продолжить обучение" : "Начать путь"} ${icon("arrow")}</button>` : `<a class="button primary" href="#catalog">Весь курс пройден · открыть каталог ${icon("check")}</a>`}<a class="button ghost" href="${started ? "#path" : "#guides"}" ${started ? 'data-action="show-path"' : ""}>${started ? "К дорожке уроков" : "Открыть гайды"} ${icon(started ? "compass" : "book")}</a></div>${started ? `<div class="inline-progress"><span><b>${count()}</b> из ${lessons.length} уроков</span><div class="meter" role="progressbar" aria-label="Пройдено уроков" aria-valuemin="0" aria-valuemax="${lessons.length}" aria-valuenow="${count()}"><i style="width:${percent()}%"></i></div><span>${percent()}%</span></div>` : `<div class="hero-facts"><span><b>${lessons.length}</b> уроков</span><span><b>${guides.length}</b> пошаговых гайдов</span><span><b>0 ₽</b> за весь курс</span></div>`}</div>${illustration()}</section><section class="learning-section" id="learning"><div class="section-title"><div><div class="eyebrow">ТВОЙ МАРШРУТ</div><h2>От идеи до первой игры</h2></div><span class="version-label">Godot 4.7 · Orchestrator 2.5</span></div><div class="learning-layout"><aside class="chapters"><span class="rail-title">${modules.length} ГЛАВ ПУТИ</span><label class="mobile-chapter-select">Выбрать главу<select id="chapter-select">${modules.map((m) => `<option value="${m.id}" ${m.id === chapter ? "selected" : ""}>${m.number}. ${m.title}</option>`).join("")}</select></label><nav aria-label="Главы курса">${modules.map((m) => `<button class="chapter ${m.id === chapter ? "active" : ""}" data-chapter="${m.id}" ${m.id === chapter ? 'aria-current="step"' : ""}><span class="chapter-number">${lessons.filter((l) => l.module === m.id && done(l.id)).length === 5 ? icon("check") : m.number}</span><span>${m.title}<small>${lessons.filter((l) => l.module === m.id && done(l.id)).length} из 5 пройдено</small></span></button>`).join("")}</nav></aside><div class="path-panel"><div class="chapter-banner"><div><small>ГЛАВА ${mod.number} · 5 УРОКОВ</small><h3>${mod.title}</h3><p>${mod.description}</p></div><span class="banner-icon">${icon(mod.icon)}</span></div><div class="path-toolbar"><span>Уроки главы</span><div class="layout-switch" role="group" aria-label="Вид уроков">${[
+    ["map", "Дорожка"],
+    ["list", "Список"],
+  ]
+    .map(
+      ([value, label]) =>
+        `<button data-layout="${value}" aria-pressed="${state.pathLayout === value}">${label}</button>`,
+    )
+    .join(
+      "",
+    )}</div></div><div class="lesson-path ${state.pathLayout === "list" ? "is-list" : ""}"><svg class="path-line" viewBox="0 0 450 650" preserveAspectRatio="none" aria-hidden="true"><path d="M225 45C225 110 330 110 330 170S225 230 225 295 120 355 120 420 225 480 225 545"/></svg>${group.map((l, i) => `<button class="path-stop stop-${i}" data-open="${l.id}" aria-label="Урок ${l.id}: ${esc(l.title)}${done(l.id) ? ", пройден" : l.id === nextLesson()?.id ? ", следующий урок" : ""}"><span class="lesson-orb ${done(l.id) ? "done" : l.id === nextLesson()?.id ? "current" : ""}">${done(l.id) ? icon("check") : icon(i === 0 ? mod.icon : i === 4 ? "flag" : "book")}</span><span class="stop-label"><small>УРОК ${String(l.id).padStart(2, "0")} · ${l.minutes} МИН</small><strong>${l.title}</strong>${l.id === nextLesson()?.id ? `<span class="path-current-label">${hasStarted() ? "Следующий урок" : "Начни здесь"}</span>` : ""}</span></button>`).join("")}</div><div class="chapter-pager"><button class="button ghost" data-action="prev-chapter" ${chapter === 0 ? "disabled" : ""} aria-label="Предыдущая глава">← Назад</button><span>Глава ${chapter + 1} из ${modules.length}</span><button class="button ghost" data-action="next-chapter" ${chapter === modules.length - 1 ? "disabled" : ""} aria-label="Следующая глава">Дальше →</button></div></div><aside class="path-aside">${progressCard()}<article class="guide-promo"><span class="pill">ПОШАГОВЫЙ ГАЙД</span>${icon(mod.icon, "promo-icon")}<h3>${recommend.title}</h3><p>Конкретные действия, ожидаемый результат и помощь на каждом шаге.</p><button class="text-button" data-open="${recommend.id}">${labelFor(recommend.id)} гайд ${icon("arrow")}</button></article></aside></div></section>`;
 }
 function bookmarkButton(item) {
   return `<button class="icon-button save ${saved(item.id) ? "is-saved" : ""}" data-save="${item.id}" aria-label="${saved(item.id) ? "Убрать из сохранённого" : "Сохранить"}: ${esc(item.title)}" aria-pressed="${saved(item.id)}" title="${saved(item.id) ? "Убрать из сохранённого" : "Сохранить материал"}">${icon("bookmark")}</button>`;
 }
 function card(item) {
+  const excerpt = discoveryExcerpt(item, catalogState[view]?.query || "");
   const inProgress = !done(item.id) && state.positions[item.id] !== undefined;
-  return `<article class="content-card ${inProgress ? "in-progress" : ""}"><div class="card-top"><span class="pill ${item.kind === "guide" ? "guide-pill" : ""}">${item.kind === "guide" ? `Гайд · ${item.steps.length} ${plural(item.steps.length, "шаг", "шага", "шагов")}` : `Урок ${String(item.id).padStart(2, "0")}`}</span>${bookmarkButton(item)}</div><a class="card-open" href="#${item.kind}/${item.id}" data-open="${item.id}" aria-label="${labelFor(item.id)}: ${esc(item.title)}"><small class="small-meta">Глава ${modules[item.module].number} · ${modules[item.module].title}</small><h3>${item.title}</h3><p>${esc(item.kind === "guide" ? item.requires : item.idea)}</p><div class="card-bottom"><span class="${inProgress ? "in-progress-label" : ""}">${done(item.id) ? `${icon("check")} Пройдено` : inProgress ? `${icon("play")} ${stageName(item, state.positions[item.id])}` : `${item.minutes} мин · ${item.kind === "guide" ? 30 : 20} XP`}</span><span class="text-button">${labelFor(item.id)} ${icon("arrow")}</span></div></a></article>`;
+  return `<article class="content-card ${inProgress ? "in-progress" : ""}"><div class="card-top"><span class="pill ${item.kind === "guide" ? "guide-pill" : ""}">${item.kind === "guide" ? `Гайд · ${item.steps.length} ${plural(item.steps.length, "шаг", "шага", "шагов")}` : `Урок ${String(item.id).padStart(2, "0")}`}</span>${bookmarkButton(item)}</div><a class="card-open" href="#${item.kind}/${item.id}" data-open="${item.id}" aria-label="${labelFor(item.id)}: ${esc(item.title)}"><small class="small-meta">Глава ${modules[item.module].number} · ${modules[item.module].title}</small><h3>${item.title}</h3><p>${catalogState[view]?.query ? `<span class="match-label">${excerpt.label}</span>` : ""}${esc(excerpt.text)}</p><div class="card-bottom"><span class="${inProgress ? "in-progress-label" : ""}">${done(item.id) ? `${icon("check")} Пройдено` : inProgress ? `${icon("play")} ${item.kind === "guide" ? `${(state.guideDone[item.id] || []).length} из ${item.steps.length} шагов` : stageName(item, state.positions[item.id])}` : `${item.minutes} мин · ${item.kind === "guide" ? 30 : 20} XP`}</span><span class="text-button">${labelFor(item.id)} ${icon("arrow")}</span></div></a></article>`;
 }
 function catalogResults() {
   const cfg = catalogState[view],
@@ -227,7 +263,7 @@ function catalogResults() {
 function catalogView() {
   const isGuides = view === "guides",
     cfg = catalogState[view];
-  return `<section class="catalog"><div class="catalog-intro"><div class="eyebrow">${isGuides ? "РЯДОМ С ТВОИМ РЕДАКТОРОМ" : "ВСЁ ДЛЯ ТВОЕЙ ПЕРВОЙ ИГРЫ"}</div><h1>${isGuides ? "Подсказка на каждом шаге." : "Найди свой следующий шаг."}</h1><p>${isGuides ? "10 гайдов: что нажать, что должно получиться и как исправить ошибку." : "50 уроков и 10 гайдов. Учись по пути или сразу открой нужную механику."}</p></div><div class="catalog-controls"><div class="catalog-tools"><label class="search">${icon("search")}<input id="course-search" type="search" placeholder="${isGuides ? "Название гайда или действие…" : "Например: камера, прыжок, материал…"}" aria-label="Поиск по курсу" value="${esc(cfg.query)}" autocomplete="off"></label><label class="chapter-filter"><span class="sr-only">Фильтр по главе</span><select id="catalog-chapter" aria-label="Фильтр по главе"><option value="all">Все главы</option>${modules.map((m) => `<option value="${m.id}" ${String(m.id) === String(cfg.module) ? "selected" : ""}>${m.number}. ${m.title}</option>`).join("")}</select></label>${isGuides ? "" : `<label class="type-filter"><span class="sr-only">Тип материала</span><select id="catalog-type" aria-label="Тип материала"><option value="all" ${cfg.type === "all" ? "selected" : ""}>Уроки и гайды</option><option value="lesson" ${cfg.type === "lesson" ? "selected" : ""}>Только уроки</option><option value="guide" ${cfg.type === "guide" ? "selected" : ""}>Только гайды</option></select></label>`}</div><div class="filter-row"><div class="filters" aria-label="Статус материалов">${[
+  return `<section class="catalog"><div class="catalog-intro"><div class="eyebrow">${isGuides ? "РЯДОМ С ТВОИМ РЕДАКТОРОМ" : "ВСЁ ДЛЯ ТВОЕЙ ПЕРВОЙ ИГРЫ"}</div><h1>${isGuides ? "Подсказка на каждом шаге." : "Найди свой следующий шаг."}</h1><p>${isGuides ? `${guides.length} гайдов: что нажать, что должно получиться и как исправить ошибку.` : `${lessons.length} уроков и ${guides.length} гайдов. Учись по пути или сразу открой нужную механику.`}</p></div><div class="catalog-controls"><div class="catalog-tools"><label class="search">${icon("search")}<input id="course-search" type="search" placeholder="${isGuides ? "Название гайда или действие…" : "Например: камера, прыжок, материал…"}" aria-label="Поиск по курсу" value="${esc(cfg.query)}" autocomplete="off"></label><label class="chapter-filter"><span class="sr-only">Фильтр по главе</span><select id="catalog-chapter" aria-label="Фильтр по главе"><option value="all">Все главы</option>${modules.map((m) => `<option value="${m.id}" ${String(m.id) === String(cfg.module) ? "selected" : ""}>${m.number}. ${m.title}</option>`).join("")}</select></label>${isGuides ? "" : `<label class="type-filter"><span class="sr-only">Тип материала</span><select id="catalog-type" aria-label="Тип материала"><option value="all" ${cfg.type === "all" ? "selected" : ""}>Уроки и гайды</option><option value="lesson" ${cfg.type === "lesson" ? "selected" : ""}>Только уроки</option><option value="guide" ${cfg.type === "guide" ? "selected" : ""}>Только гайды</option></select></label>`}</div><div class="filter-row"><div class="filters" aria-label="Статус материалов">${[
     ["all", "Все"],
     ["new", "Не пройдены"],
     ["saved", "Сохранённые"],
@@ -244,6 +280,18 @@ function catalogView() {
 function footer() {
   return `<footer class="footer"><a class="brand footer-brand" href="#path"><img src="./mark.svg" width="29" height="29" alt=""><b>Godot Path</b></a><p>От идеи до игры. В твоём темпе.</p><div><a href="https://docs.godotengine.org/en/stable/" target="_blank" rel="noopener noreferrer">Godot ↗</a><a href="https://github.com/CraterCrash/godot-orchestrator/tree/2.5" target="_blank" rel="noopener noreferrer">Orchestrator ↗</a><a href="https://github.com/alex-idk-creator/godot-path" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div><small>Прогресс хранится в этом браузере. Практику выполняй в Godot — сайт не подключён к редактору.</small></footer>`;
 }
+function revealChapter() {
+  const rail = document.querySelector(".chapters nav");
+  const current = document.querySelector(".chapter.active");
+  if (!rail?.clientHeight || !current) return;
+  const r = rail.getBoundingClientRect(),
+    c = current.getBoundingClientRect();
+  const visibleHeight = Math.max(
+    c.height,
+    Math.min(rail.clientHeight, innerHeight - r.top - 20),
+  );
+  rail.scrollTop += c.top - r.top - (visibleHeight - c.height) / 2;
+}
 function render(options = {}) {
   const y = scrollY,
     expanded = [...app.querySelectorAll("details[open][id]")].map((e) => e.id);
@@ -256,13 +304,6 @@ function render(options = {}) {
   app.innerHTML = active
     ? reader()
     : `${header()}<main id="main" tabindex="-1">${view === "path" ? pathView() : catalogView()}</main>${footer()}`;
-  const rail = document.querySelector(".chapters nav"),
-    current = document.querySelector(".chapter.active");
-  if (rail?.clientHeight && rail.scrollHeight > rail.clientHeight && current) {
-    const r = rail.getBoundingClientRect(),
-      c = current.getBoundingClientRect();
-    rail.scrollTop += c.top - r.top - (rail.clientHeight - c.height) / 2;
-  }
   if (storageWarning) {
     const p = document.createElement("p");
     p.className = "storage-warning";
@@ -278,6 +319,7 @@ function render(options = {}) {
     });
     window.scrollTo({ top: y, behavior: "instant" });
   }
+  revealChapter();
   if (options.focus) {
     const target = document.querySelector(options.focus);
     target?.focus({ preventScroll: true });
@@ -293,14 +335,14 @@ function reader() {
   const progress = finished
     ? 100
     : guide
-      ? Math.round((guideChecks.length / max) * 100)
+      ? Math.round(((reviewing ? stage : guideChecks.length) / max) * 100)
       : Math.round((stage / 3) * 100);
   const label = finished
     ? "Готово"
     : guide
       ? `Шаг ${stage + 1} из ${max}`
       : ["Знакомство", "Практика", "Проверка"][stage];
-  return `<div class="reader"><header class="reader-header"><button class="icon-button" data-action="exit" aria-label="${returnLabel()}" title="${returnLabel()}">${icon("close")}</button><div class="reader-meter"><div class="reader-context"><span>${guide ? "Пошаговый гайд" : `Урок ${String(active.id).padStart(2, "0")}`}</span><strong>${label}</strong></div><div class="meter" role="progressbar" aria-label="Прогресс материала" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><i style="width:${progress}%"></i></div></div><div class="reader-tools">${bookmarkButton(active)}${themeButton()}</div></header><main id="main" class="reader-main" tabindex="-1">${finished ? finishScreen() : guide ? guideScreen() : lessonScreen()}</main>${finished ? "" : readerFooter()}</div>`;
+  return `<div class="reader"><header class="reader-header"><button class="icon-button" data-action="exit" aria-label="${returnLabel()}" title="${returnLabel()}">${icon("close")}</button><div class="reader-meter"><div class="reader-context"><span>${guide ? "Гайд" : `Урок ${String(active.id).padStart(2, "0")}`}${reviewing ? " · повторение" : ""}<span class="reader-item-title"> · ${esc(active.title)}</span></span><strong>${label}</strong></div><div class="meter" role="progressbar" aria-label="Прогресс материала" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><i style="width:${progress}%"></i></div></div><div class="reader-tools">${bookmarkButton(active)}${themeButton()}</div></header><main id="main" class="reader-main" tabindex="-1">${finished ? finishScreen() : guide ? guideScreen() : lessonScreen()}</main>${finished ? "" : readerFooter()}</div>`;
 }
 function readerFooter() {
   const guide = active.kind === "guide",
@@ -333,6 +375,14 @@ function readerFooter() {
 function stageTabs() {
   return `<nav class="lesson-stages" aria-label="Этапы урока">${["Разобраться", "Попробовать", "Проверить"].map((s, i) => `<button data-stage="${i}" ${i === stage ? 'aria-current="step"' : ""} ${i === 2 && !practiced ? 'disabled title="Сначала отметь выполнение практики"' : ""}><span>${i + 1}</span>${s}</button>`).join("")}</nav>`;
 }
+function practiceGuide() {
+  const g =
+    guides.find((g) => g.id === active.guideId) ||
+    guides.find((g) => g.module === active.module);
+  return g
+    ? `<aside class="practice-guide"><div>${icon("nodes")}<span><b>Нужны действия по шагам?</b><small>${esc(g.title)}</small></span></div><button class="text-button" data-open="${g.id}" data-related="true">Открыть гайд ${icon("arrow")}</button></aside>`
+    : "";
+}
 function lessonScreen() {
   const nav = stageTabs();
   if (stage === 0)
@@ -345,13 +395,13 @@ function lessonScreen() {
         "",
       )}</ul></div><div class="explanation"><h2>Как это работает</h2><p>${rich(active.detail)}</p></div><a class="source-link" href="${active.source}" target="_blank" rel="noopener noreferrer">Официальная справка ↗</a>`;
   if (stage === 1)
-    return `${nav}<div class="reader-eyebrow">${icon("play")} ПРАКТИКА</div><h1>${active.title}</h1><p class="lesson-subtitle">Открой проект рядом с уроком и попробуй эти действия.</p><div class="practice-box"><h2>Твоё задание</h2><ol class="action-list">${actions(
+    return `${nav}<div class="reader-eyebrow">${icon("play")} ПРАКТИКА</div><h1>${active.title}</h1><p class="lesson-subtitle">Выполни действия и сравни результат. Если нужен Godot, держи проект рядом.</p><div class="practice-box"><h2>Твоё задание</h2><ol class="action-list">${actions(
       active.practice,
     )
       .map((s) => `<li>${rich(s)}</li>`)
       .join(
         "",
-      )}</ol></div><label class="practice-confirm"><input type="checkbox" id="practiced" ${practiced ? "checked" : ""}><span>Я выполнил практическое задание</span>${practiced ? icon("check") : ""}</label><p class="privacy-note">Ты сам отмечаешь выполнение. Отметка сохранится, если вернёшься к объяснению или закроешь урок.</p><a class="source-link" href="${active.source}" target="_blank" rel="noopener noreferrer">Свериться с документацией ↗</a>`;
+      )}</ol><div class="practice-outcome expected">${icon("check")}<div><b>Проверь результат</b><p>${rich(active.expected)}</p></div></div></div>${practiceGuide()}<label class="practice-confirm"><input type="checkbox" id="practiced" ${practiced ? "checked" : ""}><span>Я выполнил практическое задание</span>${practiced ? icon("check") : ""}</label><p class="privacy-note">Ты сам отмечаешь выполнение. Отметка сохранится, если вернёшься к объяснению или закроешь урок.</p><a class="source-link" href="${active.source}" target="_blank" rel="noopener noreferrer">Свериться с документацией ↗</a>`;
   return `${nav}<div class="reader-eyebrow">${icon("spark")} ПРОВЕРКА НОВОЙ ИДЕИ</div><h1>${active.question}</h1><p class="lesson-subtitle">Один ответ. Ошибаться можно — попытки не ограничены.</p><fieldset class="answers"><legend class="sr-only">Варианты ответа</legend>${answersFor(
     active,
   )
@@ -384,7 +434,7 @@ function finishScreen() {
   const next =
     collection.find((i) => i.id > active.id && !done(i.id)) ||
     collection.find((i) => !done(i.id));
-  return `<div class="finish"><div class="finish-emblem">${icon("flag")}</div><span class="eyebrow">ЕЩЁ ОДИН ШАГ К СВОЕЙ ИГРЕ</span><h1>${active.kind === "guide" ? "Гайд пройден!" : "Урок пройден!"}</h1><p>${active.title}</p><div class="earned"><span>${icon("spark")} ${reviewing ? "Повторение" : `+${active.kind === "guide" ? 30 : 20} XP`}</span><span>${icon("check")} ${storageWarning ? "Прогресс в этой вкладке" : "Прогресс сохранён"}</span></div>${next ? `<div class="next-preview"><span>СЛЕДУЮЩИЙ ${next.kind === "guide" ? "ГАЙД" : "УРОК"}</span><strong>${next.title}</strong><small>${next.minutes} мин</small></div>` : `<p class="finish-note">${active.kind === "guide" ? "Все 10 гайдов пройдены." : "Все 50 уроков пройдены."} Ты можешь вернуться к любой теме в каталоге.</p>`}<div class="finish-actions">${next ? `<button class="button primary" data-open="${next.id}">Следующий ${next.kind === "guide" ? "гайд" : "урок"} ${icon("arrow")}</button>` : '<a class="button primary" href="#catalog">Открыть каталог</a>'}<button class="button ghost" data-action="exit">${returnLabel()}</button></div></div>`;
+  return `<div class="finish"><div class="finish-emblem">${icon("flag")}</div><span class="eyebrow">ЕЩЁ ОДИН ШАГ К СВОЕЙ ИГРЕ</span><h1>${active.kind === "guide" ? "Гайд пройден!" : "Урок пройден!"}</h1><p>${active.title}</p><div class="earned"><span>${icon("spark")} ${reviewing ? "Повторение" : `+${active.kind === "guide" ? 30 : 20} XP`}</span><span>${icon("check")} ${storageWarning ? "Прогресс в этой вкладке" : "Прогресс сохранён"}</span></div>${next ? `<div class="next-preview"><span>СЛЕДУЮЩИЙ ${next.kind === "guide" ? "ГАЙД" : "УРОК"}</span><strong>${next.title}</strong><small>${next.minutes} мин</small></div>` : `<p class="finish-note">${active.kind === "guide" ? `Все ${guides.length} гайдов пройдены.` : `Все ${lessons.length} уроков пройдены.`} Ты можешь вернуться к любой теме в каталоге.</p>`}<div class="finish-actions">${next ? `<button class="button primary" data-open="${next.id}">Следующий ${next.kind === "guide" ? "гайд" : "урок"} ${icon("arrow")}</button>` : '<a class="button primary" href="#catalog">Открыть каталог</a>'}<button class="button ghost" data-action="exit">${returnLabel()}</button></div></div>`;
 }
 function saveReader() {
   if (!active) return;
@@ -397,6 +447,9 @@ function saveReader() {
 function openItem(id, fromRoute = false, trigger) {
   const item = allItems.find((l) => l.id === Number(id));
   if (!item) return;
+  const returningFromGuide =
+    active?.id === state.lessonReturn?.guideId &&
+    item.id === state.lessonReturn?.lessonId;
   if (!active && !(fromRoute && state.returnContext)) {
     returnContext = {
       view,
@@ -414,17 +467,28 @@ function openItem(id, fromRoute = false, trigger) {
     returnContext = state.returnContext;
     view = returnContext.view;
   }
+  if (
+    active?.kind === "lesson" &&
+    item.kind === "guide" &&
+    trigger?.dataset.related
+  ) {
+    state.lessonReturn = { lessonId: active.id, guideId: item.id };
+  } else if (state.lessonReturn?.guideId !== item.id) state.lessonReturn = null;
   active = item;
   reviewing = done(item.id);
   state.last = item.id;
   const max = item.kind === "guide" ? item.steps.length : 3;
-  stage = reviewing
-    ? 0
-    : Math.min(Number(state.positions[item.id] || 0), max - 1);
+  const restoreReview =
+    returningFromGuide ||
+    (reviewing && fromRoute && Number(state.positions[item.id]) < max);
+  stage =
+    reviewing && !restoreReview
+      ? 0
+      : Math.min(Number(state.positions[item.id] || 0), max - 1);
   const p = state.lessonProgress[item.id] || {};
-  practiced = reviewing ? false : !!p.practiced;
-  selected = reviewing ? null : (p.selected ?? null);
-  feedback = reviewing ? null : (p.feedback ?? null);
+  practiced = reviewing && !restoreReview ? false : !!p.practiced;
+  selected = reviewing && !restoreReview ? null : (p.selected ?? null);
+  feedback = reviewing && !restoreReview ? null : (p.feedback ?? null);
   saveReader();
   if (!fromRoute)
     location.hash = `${item.kind === "guide" ? "guide" : "lesson"}/${item.id}`;
@@ -459,7 +523,10 @@ function advance() {
 function closeReader() {
   if (!active) return;
   saveReader();
-  location.hash = returnContext?.view || "path";
+  if (active.id === state.lessonReturn?.guideId) {
+    const id = state.lessonReturn.lessonId;
+    openItem(id);
+  } else location.hash = returnContext?.view || "path";
 }
 function route() {
   const hash = location.hash.slice(1),
@@ -476,6 +543,8 @@ function route() {
   const target = ["catalog", "guides"].includes(hash) ? hash : "path";
   const restore = !!active && returnContext?.view === target;
   active = null;
+  state.lessonReturn = null;
+  persist();
   view = target;
   if (restore) chapter = returnContext.chapter;
   render();
@@ -501,7 +570,7 @@ function route() {
   }
 }
 function selectChapter(value) {
-  chapter = Math.max(0, Math.min(9, Number(value)));
+  chapter = Math.max(0, Math.min(modules.length - 1, Number(value)));
   state.chapter = chapter;
   persist();
   render({
@@ -511,8 +580,10 @@ function selectChapter(value) {
   document
     .querySelector(innerWidth <= 680 ? "#learning" : ".path-panel")
     .scrollIntoView({ block: "start", behavior: "instant" });
+  revealChapter();
 }
 function refreshResults() {
+  persist();
   document.querySelector("#catalog-results").innerHTML = catalogResults();
   const cfg = catalogState[view];
   document.querySelectorAll("[data-filter]").forEach((b) => {
@@ -574,6 +645,12 @@ app.addEventListener("click", (e) => {
     toggleBookmark(button);
     return;
   }
+  if (button.dataset.layout) {
+    state.pathLayout = button.dataset.layout;
+    persist();
+    render({ focus: `[data-layout="${state.pathLayout}"]`, preserve: true });
+    return;
+  }
   if (button.dataset.chapter !== undefined) {
     selectChapter(button.dataset.chapter);
     return;
@@ -629,6 +706,7 @@ app.addEventListener("click", (e) => {
         type: "all",
       };
       state.discovery = catalogState;
+      persist();
       render({ focus: "#course-search", preserve: true });
       break;
   }
@@ -674,6 +752,7 @@ document.querySelector(".skip").addEventListener("click", (e) => {
   main.scrollIntoView({ block: "start", behavior: "instant" });
 });
 window.addEventListener("hashchange", route);
+window.addEventListener("resize", revealChapter);
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && active) closeReader();
 });

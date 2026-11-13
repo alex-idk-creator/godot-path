@@ -5,20 +5,31 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { lessons, guides, modules, allItems } from "../content.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-assert.equal(lessons.length, 50);
-assert.equal(guides.length, 10);
-assert.equal(modules.length, 10);
-assert.equal(new Set(allItems.map((x) => x.id)).size, 60);
-assert.equal(new Set(lessons.map((x) => x.title)).size, 50);
+assert.equal(lessons.length, 60);
+assert.equal(guides.length, 13);
+assert.equal(modules.length, 12);
+assert.equal(new Set(allItems.map((x) => x.id)).size, 73);
+assert.equal(new Set(lessons.map((x) => x.title)).size, 60);
 for (const m of modules)
   assert.equal(lessons.filter((l) => l.module === m.id).length, 5);
 for (const l of lessons) {
-  for (const field of ["idea", "detail", "practice", "question", "explanation"])
+  for (const field of [
+    "idea",
+    "detail",
+    "practice",
+    "question",
+    "explanation",
+    "expected",
+  ])
     assert.ok(l[field]?.length > 20, `${l.id} ${field}`);
   assert.equal(l.answers.length, 3);
   assert.equal(new Set(l.answers).size, 3);
   assert.ok(l.correct >= 0 && l.correct < 3);
   assert.ok(l.source.startsWith("https://"));
+  assert.ok(
+    guides.some((g) => g.id === l.guideId),
+    `Missing walkthrough for ${l.id}`,
+  );
 }
 for (const g of guides) {
   assert.ok(g.steps.length >= 4);
@@ -33,7 +44,7 @@ assert.match(html, /lang="ru"/);
 assert.match(html, /viewport/);
 assert.ok(!html.includes("http://"));
 console.log(
-  "PASS: 50 unique lessons, 10 complete guides, 10 chapters, content and JavaScript checks.",
+  "PASS: 60 unique lessons, 13 complete guides, 12 chapters, content and JavaScript checks.",
 );
 
 await import("./model-check.mjs");
